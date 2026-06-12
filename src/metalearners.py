@@ -2,8 +2,9 @@ import os
 import numpy as np
 import joblib
 import lightgbm as lgb
-from lightgbm import LGBMClassifier
+from lightgbm import LGBMClassifier, LGBMRegressor
 from econml.metalearners import SLearner, TLearner, XLearner
+from econml.dml import DML
 
 LGBM_PARAMS = {
     "n_estimators": 300,
@@ -62,6 +63,60 @@ def train_t_learner(X_train, T_train, Y_train):
     
     return t_learner
 
+def train_x_learner(X_train, T_train, Y_train, propensity_model):
+    """
+    Trains an X-Learner using LightGBM as the base estimator for all stages.
+    
+    Args:
+        X_train (np.ndarray): Training features.
+        T_train (np.ndarray): Training treatment assignments.
+        Y_train (np.ndarray): Training outcomes.
+        propensity_model: Pre-trained propensity model.
+        
+    Returns:
+        XLearner: The fitted X-Learner model.
+    """
+    print("Training X-Learner...")
+    # The prompt specified using LGBMClassifier for all models in XLearner
+    x_learner = XLearner(
+        models=LGBMClassifier(**LGBM_PARAMS),
+        cate_models=LGBMClassifier(**LGBM_PARAMS),
+        propensity_model=propensity_model
+    )
+    
+    x_learner.fit(Y_train, T_train, X=X_train)
+    print("X-Learner training complete")
+    
+    return x_learner
+
+def train_r_learner(X_train, T_train, Y_train):
+    """
+    Trains an R-Learner (DML) using LightGBM as base estimators.
+    
+    Args:
+        X_train (np.ndarray): Training features.
+        T_train (np.ndarray): Training treatment assignments.
+        Y_train (np.ndarray): Training outcomes.
+        
+    Returns:
+        DML: The fitted R-Learner model.
+    """
+    print("Training R-Learner (DML)...")
+    r_learner = DML(
+        model_y=LGBMClassifier(**LGBM_PARAMS),
+        model_t=LGBMClassifier(**LGBM_PARAMS),
+        model_final=LGBMRegressor(**LGBM_PARAMS),
+        cv=5,
+        discrete_treatment=True,
+        discrete_outcome=True,
+        random_state=42
+    )
+    
+    r_learner.fit(Y_train, T_train, X=X_train)
+    print("R-Learner (DML) training complete")
+    
+    return r_learner
+
 def get_cate_estimates(model, X, model_name='model'):
     """
     Computes Conditional Average Treatment Effect (CATE) estimates.
@@ -111,9 +166,14 @@ if __name__ == '__main__':
         X_cal, T_cal, Y_cal = prep.get_XTY(df_cal, outcome='conversion')
         X_test, T_test, Y_test = prep.get_XTY(df_test, outcome='conversion')
         
+        import src.propensity as prop
+        
         # Standardize features
         print("Standardizing features...")
         X_train_scaled, X_cal_scaled, X_test_scaled, scaler = prep.standardize_features(X_train, X_cal, X_test)
+        
+        # Train Propensity Model
+        propensity_model = prop.train_propensity_model(X_train_scaled, T_train)
         
         # Train S-Learner
         s_learner = train_s_learner(X_train_scaled, T_train, Y_train)
@@ -121,21 +181,45 @@ if __name__ == '__main__':
         # Train T-Learner
         t_learner = train_t_learner(X_train_scaled, T_train, Y_train)
         
+        # Train X-Learner
+        x_learner = train_x_learner(X_train_scaled, T_train, Y_train, propensity_model)
+        
+        # Train R-Learner
+        r_learner = train_r_learner(X_train_scaled, T_train, Y_train)
+        
         # Get CATE estimates on test set
         print("Evaluating models on test set...")
         cate_s = get_cate_estimates(s_learner, X_test_scaled, model_name="S-Learner")
         cate_t = get_cate_estimates(t_learner, X_test_scaled, model_name="T-Learner")
+        cate_x = get_cate_estimates(x_learner, X_test_scaled, model_name="X-Learner")
+        cate_r = get_cate_estimates(r_learner, X_test_scaled, model_name="R-Learner")
+        
+        print("\n--- Final CATE Summary Table ---")
+        print(f"{'Model':<15} | {'Mean CATE':<12} | {'Std CATE':<12}")
+        print("-" * 45)
+        print(f"{'S-Learner':<15} | {np.mean(cate_s):<12.6f} | {np.std(cate_s):<12.6f}")
+        print(f"{'T-Learner':<15} | {np.mean(cate_t):<12.6f} | {np.std(cate_t):<12.6f}")
+        print(f"{'X-Learner':<15} | {np.mean(cate_x):<12.6f} | {np.std(cate_x):<12.6f}")
+        print(f"{'R-Learner':<15} | {np.mean(cate_r):<12.6f} | {np.std(cate_r):<12.6f}")
         
         # Save models
         s_learner_path = os.path.join(save_dir, 's_learner.pkl')
         t_learner_path = os.path.join(save_dir, 't_learner.pkl')
+        x_learner_path = os.path.join(save_dir, 'x_learner.pkl')
+        r_learner_path = os.path.join(save_dir, 'r_learner.pkl')
         
-        print("Saving models...")
+        print("\nSaving models...")
         joblib.dump(s_learner, s_learner_path)
         print(f"S-Learner saved to {s_learner_path}")
         
         joblib.dump(t_learner, t_learner_path)
         print(f"T-Learner saved to {t_learner_path}")
+        
+        joblib.dump(x_learner, x_learner_path)
+        print(f"X-Learner saved to {x_learner_path}")
+        
+        joblib.dump(r_learner, r_learner_path)
+        print(f"R-Learner saved to {r_learner_path}")
         
         print("\nMetalearners smoke test completed successfully!")
         
