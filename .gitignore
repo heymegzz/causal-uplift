@@ -3,4 +3,5 @@ data/*.csv
 data/*.gz
 __pycache__/
 *.pyc
-.DS_Storeresults/causal_forest.pkl
+.DS_Store
+results/*.pkl
