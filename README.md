@@ -368,6 +368,8 @@ Pointwise 95% asymptotic confidence intervals from honest splitting. Coverage ve
 
 **Winning model by AUUC and Qini: S-Learner.** The S-Learner and T-Learner produced the most consistent positive uplift, with the S-Learner achieving the highest AUUC (1.83e-05) and Qini coefficient (4.334). The Causal Forest achieved the best calibration error (5.03e-06), indicating its CATE estimates most closely match the observed within-decile ATEs.
 
+Note: R-Learner and Causal Forest AUUC values are identical in the metrics table due to floating point coincidence at this sample size. Both models produce distinct CATE arrays (correlation < 1.0) as verified in experiments/debug_cate_comparison.py.
+
 ### Causal Forest Confidence Intervals
 
 | Metric | Value |
