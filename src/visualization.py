@@ -413,14 +413,19 @@ def plot_cf_confidence_intervals(cate_estimates, lower_bound, upper_bound, save_
     x = np.arange(n_sample)
     
     for i in range(n_sample):
+        # Convert to float to avoid shape issues with multi-dimensional EconML outputs
+        c_est = float(cates_sample[i])
+        lb_est = float(lb_sample[i])
+        ub_est = float(ub_sample[i])
+        
         # Color red if statistically significant
-        if lb_sample[i] > 0 or ub_sample[i] < 0:
+        if lb_est > 0 or ub_est < 0:
             color = MODEL_COLORS.get('Causal Forest', '#F44336')
         else:
             color = MODEL_COLORS['Random']
             
-        plt.errorbar(x[i], cates_sample[i], 
-                     yerr=[[cates_sample[i] - lb_sample[i]], [ub_sample[i] - cates_sample[i]]], 
+        plt.errorbar(x[i], c_est, 
+                     yerr=[[c_est - lb_est], [ub_est - c_est]], 
                      color=color, fmt='o', markersize=3, alpha=0.6)
                      
     plt.axhline(0, color='black', linestyle='--', linewidth=1.5)
