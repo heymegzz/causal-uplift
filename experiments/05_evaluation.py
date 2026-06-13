@@ -85,10 +85,10 @@ def main():
     print("\nGenerating visualizations...")
     os.makedirs('results/figures', exist_ok=True)
     if cates:
-        viz.plot_auuc_curves(cates, T_test, Y_test, save_path='results/figures/02_auuc_comparison.png')
+        viz.plot_auuc_comparison(cates, T_test, Y_test, save_path='results/figures/02_auuc_comparison.png')
         viz.plot_qini_curves(cates, T_test, Y_test, save_path='results/figures/03_qini_curves.png')
-        viz.plot_cate_distribution(cates, save_path='results/figures/08_cate_distribution.png')
-        viz.plot_policy_value_curves(cates, T_test, Y_test, save_path='results/figures/06_policy_value_curves.png')
+        viz.plot_cate_distributions(cates, save_path='results/figures/08_cate_distribution.png')
+        viz.plot_policy_value(cates, T_test, Y_test, save_path='results/figures/06_policy_value_curves.png')
         
         # We can plot CI if causal forest is present
         if 'Causal Forest' in models and hasattr(models['Causal Forest'], 'effect_interval'):
