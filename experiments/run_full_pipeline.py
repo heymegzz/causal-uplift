@@ -18,7 +18,7 @@ print("╚═══════════════════════�
 
 CONFIG = {
     "data_path": "data/criteo-research-uplift-v2.1.csv.gz",
-    "sample_frac": 0.3,
+    "sample_frac": 0.1,
     "outcome": "conversion",
     "random_state": 42,
     "results_dir": "results",
